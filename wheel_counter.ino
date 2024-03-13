@@ -118,7 +118,7 @@ void run_program(){
   check_input();
   delta_array[counter] = last_delta;
   counter++;
-  if (counter == 100) {
+  if (counter >= 100) {
     send_can();
     array_average_rpm();
     calculate_sample_rate();
