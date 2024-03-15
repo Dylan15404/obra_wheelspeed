@@ -1,22 +1,33 @@
 #include <Arduino.h>
 
-const int ARRAY_SIZE = 100;
+const int ARRAY_SIZE = 20;
 const int number_of_fins = 42;
-signed long delta_array[ARRAY_SIZE]; // Adjust array size according to your needs
+unsigned long delta_array[ARRAY_SIZE]; // Adjust array size according to your needs
 int counter = 0;
-unsigned long last_time_reading = micros();
-int last_delta;
+unsigned long last_time_reading;
+unsigned long last_delta;
+
+const int sensorinput = 10;      // connect sensor to d4 works
+
+bool lastdigitalinput = 0;
 bool inputer = true;
+
+const unsigned int threshold = 10000;
+
+
 
 //func to check if a fin is currently being seen
 //obviously needs to be changed to actually implementation
 int check_input() {
-  unsigned long current;
-  if (inputer) {
+  if (digitalRead(sensorinput) && !lastdigitalinput) {
+    unsigned long current;
     current = micros(); // Arduino equivalent of time.time()
     last_delta = current - last_time_reading;
     last_time_reading = current;
-  }
+
+    }
+
+  lastdigitalinput = digitalRead(sensorinput);
 }
 
 //send can message func
@@ -28,17 +39,19 @@ void send_can() {
 }
 
 //calculates the average delta of fin detections in the array
-int array_average_delta(){
-  int sum_of_deltas = 0;
+long array_average_delta(){
+  long sum_of_deltas = 0;
   // Calculate the sum of time differences
-  for (int i = 1; i < ARRAY_SIZE; i++) {
+  for (int i = 0; i < ARRAY_SIZE; i++) {
     sum_of_deltas += delta_array[i];
   }
-  
   //calculate average time difference
-  unsigned long average_delta = sum_of_deltas / (ARRAY_SIZE - 1);
+  unsigned long average_delta = sum_of_deltas / (ARRAY_SIZE);
   return average_delta;
 }
+
+
+
 
 //func to calculate the average sample rate using the time deltas in the array
 float calculate_sample_rate(){
@@ -46,19 +59,31 @@ float calculate_sample_rate(){
   
   // Compute the sample rate
   float sample_rate =  1000000.0 / average_delta;
+
+  if (sample_rate>100000){
+    sample_rate = 0;
+  }
+
   Serial.print("sample rate: ");
   Serial.println(sample_rate);
+
   return sample_rate;
 }
 
 //func to work out the average rpm based on the time deltas in the array
 float array_average_rpm(){
-  int average_delta = array_average_delta();
+  long average_delta = array_average_delta();
   
   // Compute RPM
-  float rpm = (60.0 * 1000000.0) / (average_delta * number_of_fins);
+  float rpm = (60 * 1000000.0) / (average_delta * number_of_fins);
+
+  if (rpm>1000000){
+    rpm = 0;
+  }
+
   Serial.print("rpm: ");
   Serial.println(rpm);
+
   return rpm;
 }
 
@@ -117,10 +142,11 @@ void run_program(){
   //delay()
   check_input();
   delta_array[counter] = last_delta;
+
   counter++;
-  if (counter >= 100) {
-    send_can();
-    array_average_rpm();
+  if (counter >= ARRAY_SIZE) {
+    //send_can();
+    //array_average_rpm();
     calculate_sample_rate();
     counter = 0;
   }
@@ -128,7 +154,7 @@ void run_program(){
 
 void setup() {
   Serial.begin(9600);
-
+  //last_time_reading = micros();
 }
 
 void loop() {
