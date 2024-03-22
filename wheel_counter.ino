@@ -1,46 +1,32 @@
 #include <Arduino.h>
 
 const int ARRAY_SIZE = 20;
-const int number_of_fins = 42;
+const int number_of_fins = 40;
 unsigned long delta_array[ARRAY_SIZE]; // Adjust array size according to your needs
-int counter = 0;
-unsigned long last_time_reading;
-unsigned long last_delta;
+int currentIndex = 0;
 
 const int sensorinput = 10;      // connect sensor to d4 works
+const int sensoroutput = 8;
 
-bool lastdigitalinput = 0;
-bool inputer = true;
+unsigned long delta;
 
-const unsigned int threshold = 10000;
+unsigned long last_timer;
+unsigned long timer;
 
-
+int freq;
+unsigned long temp;
 
 //func to check if a fin is currently being seen
 //obviously needs to be changed to actually implementation
 int check_input() {
-  if (digitalRead(sensorinput) && !lastdigitalinput) {
-    unsigned long current;
-    current = micros(); // Arduino equivalent of time.time()
-    last_delta = current - last_time_reading;
-    last_time_reading = current;
-
-    }
-
-  lastdigitalinput = digitalRead(sensorinput);
-}
-
-//send can message func
-//obviously needs to be changed to actually implementation
-void send_can() {
-  if (last_delta != 0){
-    Serial.println(last_delta);
+  delta = pulseIn(sensorinput, HIGH);
+  return delta;
   }
-}
+
 
 //calculates the average delta of fin detections in the array
-long array_average_delta(){
-  long sum_of_deltas = 0;
+unsigned long array_average_delta(){
+  unsigned long sum_of_deltas = 0;
   // Calculate the sum of time differences
   for (int i = 0; i < ARRAY_SIZE; i++) {
     sum_of_deltas += delta_array[i];
@@ -51,14 +37,12 @@ long array_average_delta(){
 }
 
 
-
-
 //func to calculate the average sample rate using the time deltas in the array
-float calculate_sample_rate(){
-  float average_delta = array_average_delta();
+long calculate_sample_rate(){
+  long average_delta = array_average_delta();
   
   // Compute the sample rate
-  float sample_rate =  1000000.0 / average_delta;
+  long sample_rate =  1000000.0 / average_delta;
 
   if (sample_rate>100000){
     sample_rate = 0;
@@ -71,92 +55,71 @@ float calculate_sample_rate(){
 }
 
 //func to work out the average rpm based on the time deltas in the array
-float array_average_rpm(){
+long array_average_rpm(){
   long average_delta = array_average_delta();
   
   // Compute RPM
-  float rpm = (60 * 1000000.0) / (average_delta * number_of_fins);
+  long rpm = (60 * 1000000.0) / (average_delta * number_of_fins * 2);
 
-  if (rpm>1000000){
-    rpm = 0;
-  }
-
-  Serial.print("rpm: ");
+  //Serial.print("rpm: ");
   Serial.println(rpm);
 
   return rpm;
 }
 
-//func to find the best time_delay within a range for the desired sample_rate
-void tune_delay(int delay_range_start, int delay_range_end, int desired_sample_rate){
-  int dict_keys_sample_rate[delay_range_end - delay_range_start];
-  int dict_values_delays[delay_range_end - delay_range_start];
-  int dict_counter = 0;
-  for (int i = delay_range_start; i < delay_range_end; i++){
-    for (int x = 0; x < 100; x++){
-      delay(i);
-      check_input();
-      delta_array[counter] = last_delta;
-      counter++;
-      if (counter == 100) {
-        send_can();
-        counter = 0;
-        }
-        break;
-      }
-    unsigned long sr = calculate_sample_rate();
+long raw_rpm(){
+  
+  // Compute RPM
+  long rpm = (60 * 1000000.0) / (delta * number_of_fins * 2);
 
-    Serial.print("sample rate: ");
-    Serial.print(sr);
-    Serial.print(" delay: ");
-    Serial.println(i); 
-       
-    dict_keys_sample_rate[counter] = sr;
-    dict_values_delays[counter] = i;
-    counter++;
-  }
-
-  int min_difference;
-  int closest_value;
-  int closest_value_index;
-
-  for (int i = delay_range_start + 1; i < delay_range_end; i++) {
-      int difference = abs(desired_sample_rate - dict_keys_sample_rate[i]);
-      if (difference < min_difference){
-          min_difference = difference;
-          closest_value = dict_keys_sample_rate[i]; // Corrected the index from x to i
-          closest_value_index = i;
-      }
-  }
-
-  Serial.print("closest sample rate: ");
-  Serial.print(closest_value);
-  Serial.print(" delay: ");
-  Serial.println(dict_values_delays[closest_value_index]);
-
+  //Serial.print("rpm: ");
+  Serial.println(rpm);
+  return rpm;
 }
+
+
+long update_frequency(){
+  timer = micros();
+  
+  freq = 1000000 / (timer - last_timer);
+  Serial.print(freq);
+  Serial.println("hz");
+
+
+  analogWrite(sensoroutput, freq);
+
+
+  last_timer = timer;
+}
+
 
 //main program
-void run_program(){
-  //a delay buffer would go here to alter sample rate
-  //delay()
+void run_average_rpm(){
   check_input();
-  delta_array[counter] = last_delta;
+  delta_array[currentIndex] = delta;
 
-  counter++;
-  if (counter >= ARRAY_SIZE) {
-    //send_can();
-    //array_average_rpm();
-    calculate_sample_rate();
-    counter = 0;
+  if (currentIndex >= ARRAY_SIZE) {
+    array_average_rpm();
+    currentIndex = 0;
+  } else{
+    currentIndex++;
   }
 }
+
+void run_raw_rpm(){
+  if (check_input() != 0){
+    raw_rpm();
+  }
+
+}
+
 
 void setup() {
   Serial.begin(9600);
-  //last_time_reading = micros();
+  last_timer = micros();
+  pinMode(sensoroutput, OUTPUT);
 }
 
 void loop() {
-  run_program();
+  run_raw_rpm();
 }
