@@ -16,12 +16,10 @@ unsigned long timer;
 int freq;
 unsigned long temp;
 
-//func to check if a fin is currently being seen
-//obviously needs to be changed to actually implementation
-int check_input() {
+//gets delta
+int get_delta() {
   delta = pulseIn(sensorinput, HIGH);
-  return delta;
-  }
+}
 
 
 //calculates the average delta of fin detections in the array
@@ -95,7 +93,7 @@ long update_frequency(){
 
 //main program
 void run_average_rpm(){
-  check_input();
+  get_delta();
   delta_array[currentIndex] = delta;
 
   if (currentIndex >= ARRAY_SIZE) {
@@ -107,10 +105,9 @@ void run_average_rpm(){
 }
 
 void run_raw_rpm(){
-  if (check_input() != 0){
+  if (get_delta() != 0){
     raw_rpm();
   }
-
 }
 
 
@@ -121,5 +118,4 @@ void setup() {
 }
 
 void loop() {
-  run_raw_rpm();
 }
