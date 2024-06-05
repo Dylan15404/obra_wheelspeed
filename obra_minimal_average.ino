@@ -1,74 +1,96 @@
 #include <Arduino.h>
+#include <SPI.h>          // Library for using SPI Communication 
+#include <mcp2515.h>      // Library for using CAN Communication (https://github.com/autowp/arduino-mcp2515/)
 
-const int ARRAY_SIZE = 20;
+const int ARRAY_SIZE = 5;
 const int number_of_fins = 40;
 unsigned long delta_array[ARRAY_SIZE];
 int currentIndex = 0;
-
-const int sensorinput = 10;
+const int can_pin = 10;   // Assuming CAN pin is 10 like in your working code
+const int sensorinput = 5;
 
 unsigned long delta;
-unsigned long rpm
+unsigned long rpm;
 
-// gets delta
-int get_delta() {
-  delta = pulseIn(sensorinput, HIGH);
+struct can_frame canMsg;
+MCP2515 mcp2515(can_pin);
+
+void setup() {
+  Serial.begin(9600);
+  SPI.begin();
+
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS, MCP_8MHZ);
+  mcp2515.setNormalMode();
+  pinMode(sensorinput, INPUT);
+  delay(10);
 }
 
+// Gets delta
+unsigned long get_delta() {
+  return pulseIn(sensorinput, HIGH);
+}
 
-//calculates the average delta of fin detections in the array
-unsigned long array_average_delta(){
+// Calculates the average delta of fin detections in the array
+unsigned long array_average_delta() {
   unsigned long sum_of_deltas = 0;
   // Calculate the sum of time differences
   for (int i = 0; i < ARRAY_SIZE; i++) {
     sum_of_deltas += delta_array[i];
   }
-  //calculate average time difference
-  unsigned long average_delta = sum_of_deltas / (ARRAY_SIZE);
-  return average_delta;
+  // Calculate average time difference
+  return sum_of_deltas / ARRAY_SIZE;
 }
 
-
-//func to work out the average rpm based on the time deltas in the array
-long array_average_rpm(){
-  long average_delta = array_average_delta();
-  
+// Func to work out the average rpm based on the time deltas in the array
+unsigned long array_average_rpm() {
+  unsigned long average_delta = array_average_delta();
   // Compute RPM
-  rpm = (60 * 1000000.0) / (average_delta * number_of_fins * 2);
+  if (average_delta != 0) {
+    rpm = (60 * 1000000.0) / (average_delta * number_of_fins * 2);
+  } else {
+    rpm = 0;  // Avoid division by zero
+  }
 
-  //Serial.print("rpm: ");
+  Serial.print("rpm: ");
   Serial.println(rpm);
+
+  return rpm;
 }
 
-
-void send_can(){
-
-
-}
-
-
-//main program
-void run_average_rpm(){
-
-  get_delta();
+// Main program
+void run_average_rpm() {
+  delta = get_delta();
   delta_array[currentIndex] = delta;
 
-  if (currentIndex >= ARRAY_SIZE) {
+  if (currentIndex >= ARRAY_SIZE - 1) {
     array_average_rpm();
     currentIndex = 0;
-
-    send_can();
-
-  } else{
+  } else {
     currentIndex++;
   }
 }
 
+void sendRPM() {
+  uint16_t rpm1 = rpm;
 
-void setup() {
-  Serial.begin(9600);
+  canMsg.can_id  = 0x525;           // CAN id as 0x525
+  canMsg.can_dlc = 8;               // CAN data length as 8
+  canMsg.data[0] = (rpm1 & 0xFF);   // Send the lower byte
+  canMsg.data[1] = ((rpm1 >> 8) & 0xFF); // Send the upper byte
+  canMsg.data[2] = (rpm1 & 0xFF);   // Send the lower byte
+  canMsg.data[3] = ((rpm1 >> 8) & 0xFF); // Send the upper byte
+  canMsg.data[4] = (rpm1 & 0xFF);   // Send the lower byte
+  canMsg.data[5] = ((rpm1 >> 8) & 0xFF); // Send the upper byte
+  canMsg.data[6] = (rpm1 & 0xFF);   // Send the lower byte
+  canMsg.data[7] = ((rpm1 >> 8) & 0xFF); // Send the upper byte
+ 
+  mcp2515.sendMessage(&canMsg);     // Sends the CAN message
+  Serial.println("sent");
 }
 
 void loop() {
   run_average_rpm();
+  sendRPM();
+  delay(1); // Add delay to avoid flooding the CAN bus
 }
