@@ -56,7 +56,7 @@ unsigned long calc_average_rpm() {
   Serial.println(average_rpm);
 }
 
-void add_value(){
+void add_value() {
   // Shift all values to the right
   for (int i = ARRAY_SIZE - 1; i > 0; i--) {
     delta_array[i] = delta_array[i - 1];
@@ -65,21 +65,30 @@ void add_value(){
   delta_array[0] = delta;
 }
 
-void zero_checker(){
-  if ((delta_array[0] == 0) && (delta_array[1] == 0) && (delta_array[2] == 0)){
-      for (int i = 0; i > ARRAY_SIZE - 1; i++) {
-        delta_array[i] = 0;
-      }
+void zero_checker() {
+  if ((delta_array[0] == 0) && (delta_array[1] == 0)) {
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+      delta_array[i] = 0;
+    }
   }
 }
 
-void big_checker(){
-  if ((delta_array[0] > 500000) && (delta_array[1] > 500000) && (delta_array[2] > 500000)){
-      for (int i = 0; i > ARRAY_SIZE - 1; i++) {
-        delta_array[i] = 0;
-      }
+void big_checker() {
+  if ((delta_array[0] > 500000) && (delta_array[1] > 500000) && (delta_array[2] > 500000)) {
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+      delta_array[i] = 0;
+    }
   }
 }
+
+void print_array() {
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    Serial.print(delta_array[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
 
 void sendRPM() {
   uint16_t rpm1 = average_rpm;
@@ -104,8 +113,10 @@ void sendRPM() {
 void loop() {
   delta = get_delta();
   add_value();
+  delay(1);
   zero_checker();
   big_checker();
+  print_array();
   calc_average_rpm();
   sendRPM();
   delay(1); // Add delay to avoid flooding the CAN bus
