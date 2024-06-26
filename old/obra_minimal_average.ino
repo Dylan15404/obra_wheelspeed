@@ -1,14 +1,19 @@
 #include <Arduino.h>
+#include <mcp2515.h>      //Library for using CAN Communication (https://github.com/autowp/arduino-mcp2515/)
 
 const int ARRAY_SIZE = 20;
 const int number_of_fins = 40;
 unsigned long delta_array[ARRAY_SIZE];
 int currentIndex = 0;
+const int can_pin = 8;
 
-const int sensorinput = 10;
+const int sensorinput = 5;
 
 unsigned long delta;
-unsigned long rpm
+unsigned long rpm;
+
+struct can_frame canMsg;
+MCP2515 mcp2515(can_pin);
 
 // gets delta
 int get_delta() {
@@ -41,12 +46,6 @@ long array_average_rpm(){
 }
 
 
-void send_can(){
-
-
-}
-
-
 //main program
 void run_average_rpm(){
 
@@ -57,18 +56,41 @@ void run_average_rpm(){
     array_average_rpm();
     currentIndex = 0;
 
-    send_can();
 
   } else{
     currentIndex++;
   }
 }
 
+void sendRPM() {
+  run_average_rpm();
+  uint16_t rpm1,rpm2,rpm3,rpm4 = rpm;
+  canMsg.can_id  = 0x525;           //CAN id as 0x525
+  canMsg.can_dlc = 8;               //CAN data length as 8
+  canMsg.data[0] = (rpm1 & 0xFF); // Send the upper bytefirst             
+  canMsg.data[1] = ((rpm1 >> 8) & 0xFF); // Send the lower byte
+  canMsg.data[2] = (rpm2 & 0xFF); // Send the upper bytefirst 
+  canMsg.data[3] = ((rpm2 >> 8) & 0xFF); // Send the lower byte
+  canMsg.data[4] = (rpm3 & 0xFF); // Send the upper bytefirst 
+  canMsg.data[5] = ((rpm3 >> 8) & 0xFF); // Send the lower byte
+  canMsg.data[6] = (rpm4 & 0xFF); // Send the upper bytefirst 
+  canMsg.data[7] = ((rpm4 >> 8) & 0xFF); // Send the lower byte
+ 
+  mcp2515.sendMessage(&canMsg);     //Sends the CAN message
+  Serial.println(rpm1);
+}
 
 void setup() {
   Serial.begin(9600);
+  SPI.begin();
+
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS);
+  mcp2515.setNormalMode();
+
 }
 
 void loop() {
-  run_average_rpm();
+  sendRPM();
+  
 }
