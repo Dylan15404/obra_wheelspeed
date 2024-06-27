@@ -6,8 +6,8 @@ const int number_of_fins = 40;
 const int can_pin = 10;   // Assuming CAN pin is 10 like in your working code
 const int sensorinput = 5;
 
-const int count = 0;
-const int wheelcount = 0;
+int count = 0;
+int wheelcount = 0;
 
 
 struct can_frame canMsg;
@@ -26,10 +26,10 @@ void setup() {
 
 // Gets delta
 void check() {
-  attachInterrupt(digitalPinToInterrupt(sensorinput), count, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorinput), counter, FALLING);
 }
 
-void count(){
+void counter(){
   count++;
 }
 
