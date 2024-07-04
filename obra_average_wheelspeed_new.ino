@@ -66,8 +66,8 @@ void add_value() {
   delta_array[0] = delta;
 }
 
-//checks through the array and excludes zero values
-void zero_checker() {
+//if the first 3 values are 0 then set all the values to zero
+bool zero_checker() {
   if ((delta_array[0] == 0) && (delta_array[1] == 0)) {
     for (int i = 0; i < ARRAY_SIZE; i++) {
       delta_array[i] = 0;
@@ -75,7 +75,7 @@ void zero_checker() {
   }
 }
 
-//checks through array and excludes value that are too big
+//if the first 3 values are more than 500000 then set all the values to zero
 void big_checker() {
   if ((delta_array[0] > 500000) && (delta_array[1] > 500000) && (delta_array[2] > 500000)) {
     for (int i = 0; i < ARRAY_SIZE; i++) {
