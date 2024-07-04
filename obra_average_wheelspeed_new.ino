@@ -56,6 +56,7 @@ unsigned long calc_average_rpm() {
   //Serial.println(average_rpm);
 }
 
+//shifts the delta array to the right and adds the delta value to position 0
 void add_value() {
   // Shift all values to the right
   for (int i = ARRAY_SIZE - 1; i > 0; i--) {
@@ -65,6 +66,7 @@ void add_value() {
   delta_array[0] = delta;
 }
 
+//checks through the array and excludes zero values
 void zero_checker() {
   if ((delta_array[0] == 0) && (delta_array[1] == 0)) {
     for (int i = 0; i < ARRAY_SIZE; i++) {
@@ -73,6 +75,7 @@ void zero_checker() {
   }
 }
 
+//checks through array and excludes value that are too big
 void big_checker() {
   if ((delta_array[0] > 500000) && (delta_array[1] > 500000) && (delta_array[2] > 500000)) {
     for (int i = 0; i < ARRAY_SIZE; i++) {
@@ -81,6 +84,7 @@ void big_checker() {
   }
 }
 
+// print array add in loop where needed
 void print_array() {
   for (int i = 0; i < ARRAY_SIZE; i++) {
     Serial.print(delta_array[i]);
@@ -89,7 +93,7 @@ void print_array() {
   Serial.println();
 }
 
-
+// sends rpm over can protocol
 void sendRPM() {
   uint16_t rpm1 = average_rpm;
 
@@ -107,8 +111,6 @@ void sendRPM() {
   mcp2515.sendMessage(&canMsg);     // Sends the CAN message
   //Serial.println("sent");
 }
-
-
 
 void loop() {
   delta = get_delta();
